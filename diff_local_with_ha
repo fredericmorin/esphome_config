@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd -P )"
+
+rm -rf "$SCRIPT_ROOT/diff/remote"
+rm -rf "$SCRIPT_ROOT/diff/local"
+mkdir -p "$SCRIPT_ROOT/diff/remote"
+mkdir -p "$SCRIPT_ROOT/diff/local"
+
+# set -x
+ssh "$HA_HOST" 'bash -c "cd /homeassistant/esphome/; tar -zc *.yaml"' | tar -zx -C "$SCRIPT_ROOT/diff/remote"
+cp "$SCRIPT_ROOT/devices/"*.yaml "$SCRIPT_ROOT/diff/local/"
+
+exec diff -q "$SCRIPT_ROOT/diff/local" "$SCRIPT_ROOT/diff/remote" -x ".yaml"
