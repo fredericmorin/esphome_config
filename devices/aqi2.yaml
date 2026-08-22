@@ -79,30 +79,48 @@ interval:
     then:
       - component.update: oled
 
+# reusable filter: average all raw readings over 60s, then publish once
+.defaultfilters:
+  - &throttle_avg
+    throttle_average: 60s
+
 sensor:
+  # raw sensors are `internal` so they sample as fast as the hardware allows
+  # (feeding the live display), while the `copy` sensors below publish a 60s
+  # average to Home Assistant.
   - platform: pmsx003
     type: PMSX003
     uart_id: uart_1
     pm_1_0:
-      name: "Particulate Matter <1.0µm Concentration"
+      id: pm1
+      internal: true
     pm_2_5:
       id: pm25
-      name: "Particulate Matter <2.5µm Concentration"
+      internal: true
     pm_10_0:
-      name: "Particulate Matter <10.0µm Concentration"
+      id: pm10
+      internal: true
   - platform: senseair
     uart_id: uart_2
     co2:
       id: co2
-      name: "SenseAir CO2 Value"
-    update_interval: 60s
+      internal: true
+    update_interval: 5s
   - platform: sht4x
     # calibrate: https://www.reddit.com/r/Esphome/comments/1horuxt/comment/m4f34q7/
     id: sht4x_sensor
-    # update_interval: 5s  # default to 60s
+    update_interval: 5s  # sample fast; 60s average is published via the copy sensors below
     humidity:
-      name: "Relative Humidity"
+      id: humidity
+      internal: true
       accuracy_decimals: 1
     temperature:
-      name: "Temperature"
+      id: temperature
+      internal: true
       accuracy_decimals: 1
+  - { platform: copy, source_id: pm1,  name: "Particulate Matter <1.0µm Concentration",  filters: *throttle_avg }
+  - { platform: copy, source_id: pm25, name: "Particulate Matter <2.5µm Concentration",  filters: *throttle_avg }
+  - { platform: copy, source_id: pm10, name: "Particulate Matter <10.0µm Concentration", filters: *throttle_avg }
+  - { platform: copy, source_id: co2,  name: "SenseAir CO2 Value", filters: *throttle_avg }
+  - { platform: copy, source_id: humidity,    name: "Relative Humidity", filters: *throttle_avg }
+  - { platform: copy, source_id: temperature, name: "Temperature",       filters: *throttle_avg }
