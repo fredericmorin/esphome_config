@@ -41,12 +41,15 @@ Common additions across most devices: a `restart` switch, a `wifi_signal` sensor
 
 ## Secrets and networking
 
-`!secret` values resolve from `devices/secrets.yaml` (gitignored; keys: `wifi_ssid`,
-`wifi_password`, `niot_ssid`, `niot_password`, `ota_password`).
+`!secret` values resolve from `devices/secrets.yaml` (gitignored). `devices/secrets.yaml.example`
+lists every key name: the shared `wifi_*`/`niot_*` WLAN credentials, plus per-device
+`<device>__encryption_key`, `<device>__ota_password` and `<device>__ap_password` entries. A new device needs
+its own entries added to both files.
 
 Every device but `plug8` is on the `niot_*` IoT WLAN and pins a static `use_address:` — mDNS does
 not cross that segment, so a new device needs an address assigned rather than a hostname. Most
 files keep the old `wifi_*` lines commented out just below.
 
-Per-device `api.encryption.key` and `ota.password` are committed in plaintext. They are
-per-device, and regenerating one means re-adding the device in HA — leave them alone unless asked.
+`api.encryption.key` and `ota.password` are per-device and never written in a device file —
+always a `!secret` reference. Regenerating one means re-adding the device in HA — leave them alone
+unless asked.

@@ -1,0 +1,96 @@
+esphome:
+  name: plug21
+  friendly_name: plug21
+  platformio_options:
+    upload_speed: 115200
+rtl87xx:
+  board: generic-rtl8710bn-2mb-788k
+api:
+  encryption:
+    key: !secret plug21__encryption_key
+ota:
+  platform: esphome
+  password: !secret plug21__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.131
+logger:
+# web_server:
+mdns:
+
+# Dump from original tuya firmware:
+# [01-01 18:12:15 TUYA Notice][json_config.c:141] key:  pin=5, drive level=low
+# [01-01 18:12:15 TUYA Notice][json_config.c:142] relay:  pin=19, drive level=high
+# [01-01 18:12:15 TUYA Notice][json_config.c:143] led : pin=23, drive level=high
+# [01-01 18:12:15 TUYA Notice][json_config.c:242] wifi led:  pin=29, drive level=high
+
+binary_sensor:
+  - platform: gpio
+    name: "Button"
+    internal: true
+    pin:
+      number: 5
+      mode: INPUT_PULLDOWN
+      inverted: True
+    on_press:
+      - switch.toggle: relay
+
+switch:
+  - platform: gpio
+    id: relay
+    name: "Relay"
+    pin: 19
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - output.turn_on: relay_led
+    on_turn_off:
+      - output.turn_off: relay_led
+  - platform: restart
+    name: "Restart"
+
+status_led:
+  pin: 23
+
+output:
+  - platform: gpio
+    id: relay_led
+    pin: 29
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+  # Dump from original tuya firmware:
+  # [01-01 18:12:15 TUYA Notice][json_config.c:384] get chip type:bl0937
+  # [01-01 18:12:15 TUYA Notice][json_config.c:485] epin = 14, ivpin = 15, ivcpin = 0, ivcpin_type = HIGH, \
+  #                                                 v_ref = 586, i_ref = 28928, p_ref = 16929, e_ref= 1408, \
+  #                                                 v_def = 2200, i_def = 392, p_def = 864
+  # [01-01 18:12:15 TUYA Notice][json_config.c:430] e_dp:17, i_dp:18, p_dp:19, v_dp:20, fault_dp:26
+  # [01-01 18:12:15 TUYA Notice][json_config.c:431] ri: 1, over_current: 17000
+  # - platform: hlw8012
+  #   model: BL0937
+  #   sel_pin:
+  #     number: 14
+  #     inverted: true
+  #   cf_pin: 15
+  #   cf1_pin: 0
+  #   current:
+  #     name: "Current"
+  #     accuracy_decimals: 1
+  #   voltage:
+  #     name: "Voltage"
+  #     accuracy_decimals: 1
+  #   power:
+  #     name: "Power"
+  #     accuracy_decimals: 1
+  #     id: my_power
+  #   update_interval: 60s
+  # - platform: total_daily_energy
+  #   name: "Daily Energy"
+  #   power_id: my_power
+
+# for platform: total_daily_energy
+# time:
+#   - platform: sntp

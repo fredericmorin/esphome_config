@@ -1,0 +1,73 @@
+esphome:
+  name: dimmer30
+  friendly_name: dimmer30
+api:
+  encryption:
+    key: !secret dimmer30__encryption_key
+ota:
+  platform: esphome
+  password: !secret dimmer30__ota_password
+bk72xx:
+  board: generic-bk7231n-qfn32-tuya
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.100
+web_server:
+mdns:
+captive_portal:
+
+# Make sure logging is not using the serial port
+logger:
+  baud_rate: 0
+uart:
+  rx_pin: P10  # RX1
+  tx_pin: P11  # TX1
+  baud_rate: 9600
+# Register the Tuya MCU connection
+tuya:
+light:
+  - platform: tuya
+    name: Dimmer
+    restore_mode: RESTORE_DEFAULT_OFF
+    switch_datapoint: 1
+    dimmer_datapoint: 2
+    min_value: 0
+    max_value: 1000
+number:
+  - platform: tuya
+    number_datapoint: 6
+    name: Countdown
+    unit_of_measurement: s
+    min_value: 0
+    max_value: 86400
+    step: 1
+    entity_category: config
+select:
+  - platform: tuya
+    enum_datapoint: 4
+    name: Led Type
+    optimistic: true
+    options:
+      0: Led
+      1: Incandescent
+      2: Halogen
+    entity_category: config
+  - platform: tuya
+    name: LED
+    enum_datapoint: 101
+    optimistic: true
+    options:
+      0: "Off"
+      1: "Dim"
+      2: "Bright"
+    entity_category: config
+  - platform: tuya
+    enum_datapoint: 102
+    name:  On Control
+    optimistic: true
+    options:
+      0: Gradual
+      1: Instant
+      2: Switch
+    entity_category: config

@@ -1,0 +1,50 @@
+esphome:
+  name: outplug3
+  friendly_name: outplug3
+esp8266:
+  board: esp01_1m
+  restore_from_flash: True
+api:
+  encryption:
+    key: !secret outplug3__encryption_key
+ota:
+  platform: esphome
+  password: !secret outplug3__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.103
+logger:
+web_server:
+mdns:
+
+
+binary_sensor:
+  - platform: gpio
+    name: "Button"
+    internal: true
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: True
+    on_press:
+      - switch.toggle: relay
+  - platform: status
+    name: "Status"
+
+switch:
+  - platform: gpio
+    id: relay
+    name: "Relay"
+    pin: GPIO12
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: restart
+    name: "Restart"
+
+status_led:
+  pin: GPIO13
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s

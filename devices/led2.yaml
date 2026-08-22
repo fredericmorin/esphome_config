@@ -1,0 +1,92 @@
+esphome:
+  name: led2
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: arduino
+api:
+  encryption:
+    key: !secret led2__encryption_key
+ota:
+  - platform: esphome
+    password: !secret led2__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.88
+logger:
+web_server:
+mdns:
+
+light:
+  - platform: cwww
+    name: "Channel 1+2"
+    restore_mode: RESTORE_DEFAULT_OFF
+    cold_white: output1
+    warm_white: output2
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    constant_brightness: true
+    default_transition_length: 0.5s
+    initial_state:
+      state: on
+      brightness: 0.1
+  - platform: cwww
+    name: "Channel 3+4"
+    restore_mode: RESTORE_DEFAULT_OFF
+    cold_white: output3
+    warm_white: output4
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    constant_brightness: true
+    default_transition_length: 0.5s
+    initial_state:
+      state: on
+      brightness: 0.1
+  # - platform: monochromatic
+  #   name: "Channel 1"
+  #   output: output1
+  #   default_transition_length: 0.5s
+  # - platform: monochromatic
+  #   name: "Channel 2"
+  #   output: output2
+  #   default_transition_length: 0.5s
+  # - platform: monochromatic
+  #   name: "Channel 3"
+  #   output: output3
+  #   default_transition_length: 0.5s
+  # - platform: monochromatic
+  #   name: "Channel 4"
+  #   output: output4
+  #   default_transition_length: 0.5s
+
+output:
+  - platform: ledc
+    id: output1
+    pin: GPIO13
+    frequency: 100Hz
+    # min_power: 0.0001
+    # zero_means_zero: true
+    # inverted: true
+  - platform: ledc
+    id: output2
+    pin: GPIO14
+    frequency: 100Hz
+    # min_power: 0.0001
+    # zero_means_zero: true
+    # inverted: true
+
+  - platform: ledc
+    id: output3
+    pin: GPIO27
+    frequency: 100Hz
+    # min_power: 0.0001
+    # zero_means_zero: true
+    # inverted: true
+  - platform: ledc
+    id: output4
+    pin: GPIO26
+    frequency: 100Hz
+    # min_power: 0.0001
+    # zero_means_zero: true
+    # inverted: true

@@ -1,0 +1,53 @@
+esphome:
+  name: hvac1
+  friendly_name: hvac1
+  platformio_options: {}
+    # upload_speed: 115200
+  #   board_build.extra_flags:
+  #     - "-DARDUINO_USB_CDC_ON_BOOT=0"  # Override, defaults to '-DARDUINO_USB_CDC_ON_BOOT=1'
+# esp8266:
+#   board: d1_mini_lite
+esp32:
+  board: lolin_s2_mini #Pinout: https://www.wemos.cc/en/latest/s2/s2_mini.html
+  # board: nodemcu-32s
+  framework:
+    type: arduino
+api:
+  encryption:
+    key: !secret hvac1__encryption_key
+ota:
+  platform: esphome
+  password: !secret hvac1__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.129
+logger:
+  # esp8266:
+  # hardware_uart: UART0  # tx: 1, rx: 3
+  hardware_uart: UART1  # tx: 2, rx: NA
+web_server:
+mdns:
+
+# Add the dependency to pull in the fujitsu heat pump component
+external_components:
+  - source: github://FujiHeatPump/esphome-fujitsu@proper-component
+
+climate:
+- platform: fujitsu_heat_pump
+  name: My Fujitsu Heat Pump
+  # The rest of these options are optional
+  # 32s:
+  # tx_pin: 2
+  # rx_pin: 3
+  # s2:
+  tx_pin: 16
+  rx_pin: 17
+  # remote_temperature_id: some_temp_sensor # TODO see FujitsuClimate.cpp to correct the implementation
+  master: true
+
+# # Pull a sensor in from homeassistant
+# sensor:
+#   - platform: homeassistant
+#     entity_id: sensor.zigbee_sensor
+#     id: some_temp_sensor

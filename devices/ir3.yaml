@@ -1,0 +1,46 @@
+esphome:
+  name: ir3
+  friendly_name: ir3
+esp8266:
+  board: esp8285
+api:
+  encryption:
+    key: !secret ir3__encryption_key
+ota:
+  platform: esphome
+  password: !secret ir3__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.87
+logger:
+web_server:
+mdns:
+
+remote_receiver:
+  id: rcvr
+  pin:
+    number: GPIO14
+    inverted: true
+  dump: all
+remote_transmitter:
+  id: tmtr
+  pin: GPIO4
+  carrier_duty_percent: 50%
+climate:
+  - platform: fujitsu_general
+    name: AC
+    receiver_id: rcvr
+    transmitter_id: tmtr
+    # sensor: current_temperature
+    visual:
+      min_temperature: 16
+      max_temperature: 25
+      temperature_step:
+        target_temperature: 1
+        current_temperature: 0.1
+# sensor:
+#   - platform: homeassistant
+#     id: current_temperature
+#     entity_id: sensor.lumi_lumi_weather_587be507_temperature  # basement
+#     internal: True

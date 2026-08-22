@@ -1,0 +1,41 @@
+esphome:
+  name: led1
+esp8266:
+  board: esp01_1m
+api:
+  encryption:
+    key: !secret led1__encryption_key
+ota:
+  platform: esphome
+  password: !secret led1__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.83
+logger:
+web_server:
+mdns:
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+light:
+  - platform: rgb
+    name: "Den LED Lights"
+    red: output_red
+    green: output_green
+    blue: output_blue
+    restore_mode: RESTORE_DEFAULT_OFF
+
+output:
+  - platform: esp8266_pwm
+    id: output_red
+    pin: GPIO15
+  - platform: esp8266_pwm
+    id: output_green
+    pin: GPIO13
+  - platform: esp8266_pwm
+    id: output_blue
+    pin: GPIO12
+

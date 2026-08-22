@@ -1,0 +1,200 @@
+esphome:
+  name: emporiavue2
+  friendly_name: emporiavue2
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: recommended
+external_components:
+  - source: github://emporia-vue-local/esphome@dev
+    components: [ emporia_vue ]
+api:
+  encryption:
+    key: !secret emporiavue2__encryption_key
+ota:
+  platform: esphome
+  password: !secret emporiavue2__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.81
+logger:
+  logs:
+    # by default, every reading will be printed to the UART, which is very slow
+    # This will disable printing the readings but keep other helpful messages
+    sensor: INFO
+web_server:
+mdns:
+
+preferences:
+  # the default of 1min is far too short--flash chip is rated
+  # for approx 100k writes.
+  flash_write_interval: "48h"
+
+i2c:
+  sda: 21
+  scl: 22
+  scan: false
+  frequency: 400kHz  # recommended range is 50-200kHz
+  timeout: 1ms
+  id: i2c_a
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+# these are called references in YAML. They allow you to reuse
+# this configuration in each sensor, while only defining it once
+.defaultfilters:
+  - &throttle_avg
+    # average all raw readings together over a 5 second span before publishing
+    throttle_average: 5s
+  - &throttle_time
+    # only send the most recent measurement every 60 seconds
+    throttle: 60s
+  - &invert
+    # invert and filter out any values below 0.
+    lambda: 'return max(-x, 0.0f);'
+  - &pos
+    # filter out any values below 0.
+    lambda: 'return max(x, 0.0f);'
+  - &abs
+    # take the absolute value of the value
+    lambda: 'return abs(x);'
+
+sensor:
+  - platform: emporia_vue
+    i2c_id: i2c_a
+    phases:
+      - id: phase_a  # Verify that this specific phase/leg is connected to correct input wire color on device listed below
+        input: RED  # Vue device wire color
+        calibration: 0.022  # 0.022 is used as the default as starting point but may need adjusted to ensure accuracy
+        # To calculate new calibration value use the formula <in-use calibration value> * <accurate voltage> / <reporting voltage>
+        voltage:
+          name: "Phase A Voltage"
+          filters: [ *throttle_avg, *pos ]
+      - id: phase_b  # Verify that this specific phase/leg is connected to correct input wire color on device listed below
+        input: BLACK  # Vue device wire color
+        calibration: 0.022  # 0.022 is used as the default as starting point but may need adjusted to ensure accuracy
+        # To calculate new calibration value use the formula <in-use calibration value> * <accurate voltage> / <reporting voltage>
+        voltage:
+          name: "Phase B Voltage"
+          filters: [ *throttle_avg, *pos ]
+    ct_clamps:
+      - phase_id: phase_a
+        input: "A"  # Verify the CT going to this device input also matches the phase/leg
+        power:
+          id: phase_a_power_raw
+          device_class: power
+          filters: [ *pos ]
+          internal: true
+      - phase_id: phase_b
+        input: "B"  # Verify the CT going to this device input also matches the phase/leg
+        power:
+          id: phase_b_power_raw
+          device_class: power
+          filters: [ *pos ]
+          internal: true
+      # Pay close attention to set the phase_id for each breaker by matching it to the phase/leg it connects to in the panel
+      - { phase_id: phase_a, input:  "1", power: { id:  cir1_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_b, input:  "2", power: { id:  cir2_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_a, input:  "3", power: { id:  cir3_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input:  "4", power: { id:  cir4_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_a, input:  "5", power: { id:  cir5_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input:  "6", power: { id:  cir6_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_b, input:  "7", power: { id:  cir7_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_b, input:  "8", power: { id:  cir8_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input:  "9", power: { id:  cir9_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_b, input: "10", power: { id: cir10_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_a, input: "11", power: { id: cir11_raw, internal: true, filters: [ *abs ] } }
+      - { phase_id: phase_b, input: "12", power: { id: cir12_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input: "13", power: { id: cir13_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input: "14", power: { id: cir14_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input: "15", power: { id: cir15_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+      - { phase_id: phase_a, input: "16", power: { id: cir16_raw, internal: true, filters: [ *abs, multiply: 2 ] } }
+    on_update:
+      then:
+        - component.update: total_power_raw
+        - component.update: balance_power_raw
+  - { platform: copy, id: phase_a_power, source_id: phase_a_power_raw, name: "Phase A Power", filters: *throttle_avg }
+  - { platform: copy, id: phase_b_power, source_id: phase_b_power_raw, name: "Phase B Power", filters: *throttle_avg }
+  - { platform: copy, id: total_power,   source_id: total_power_raw,   name: "Total Power", filters: *throttle_avg }
+  - { platform: copy, id: balance_power, source_id: balance_power_raw, name: "Balance Power", filters: *throttle_avg }
+  - { platform: copy, id:  cir1, source_id:  cir1_raw, name: "Panel 2 Circuit 1 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir2, source_id:  cir2_raw, name: "Panel 2 Circuit 5 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir3, source_id:  cir3_raw, name: "Panel 2 Circuit 1012 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir4, source_id:  cir4_raw, name: "Circuit 2 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir5, source_id:  cir5_raw, name: "Circuit 1517 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir6, source_id:  cir6_raw, name: "Circuit 19 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir7, source_id:  cir7_raw, name: "Circuit 21 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir8, source_id:  cir8_raw, name: "Circuit 2927 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id:  cir9, source_id:  cir9_raw, name: "Circuit 36 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir10, source_id: cir10_raw, name: "Circuit 32 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir11, source_id: cir11_raw, name: "Circuit 28 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir12, source_id: cir12_raw, name: "Circuit 2426 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir13, source_id: cir13_raw, name: "Circuit 2022 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir14, source_id: cir14_raw, name: "Circuit 1214 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir15, source_id: cir15_raw, name: "Circuit 108 Power", filters: [ *throttle_avg ] }
+  - { platform: copy, id: cir16, source_id: cir16_raw, name: "Circuit 46 Power", filters: [ *throttle_avg ] }
+  - platform: template
+    lambda: return id(phase_a_power).state + id(phase_b_power).state;
+    update_interval: never   # will be updated after all power sensors update via on_update trigger
+    id: total_power_raw
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    internal: true
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    power_id: total_power_raw
+    accuracy_decimals: 0
+    restore: false
+    filters: *throttle_time
+  - platform: template
+    lambda: !lambda |-
+      return max(0.0f, id(total_power_raw).state -
+        id( cir1).state -
+        id( cir2).state -
+        id( cir3).state -
+        id( cir4).state -
+        id( cir5).state -
+        id( cir6).state -
+        id( cir7).state -
+        id( cir8).state -
+        id( cir9).state -
+        id(cir10).state -
+        id(cir11).state -
+        id(cir12).state -
+        id(cir13).state -
+        id(cir14).state -
+        id(cir15).state -
+        id(cir16).state);
+    update_interval: never   # will be updated after all power sensors update via on_update trigger
+    id: balance_power_raw
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    internal: true
+  - platform: total_daily_energy
+    name: "Balance Daily Energy"
+    power_id: balance_power_raw
+    accuracy_decimals: 0
+    restore: false
+    filters: *throttle_time
+  - { power_id:  cir1, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Panel 2 Circuit 1 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir2, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Panel 2 Circuit 5 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir3, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Panel 2 Circuit 1012 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir4, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 2 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir5, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 1517 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir6, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 19 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir7, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 21 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir8, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 2927 Daily Energy", filters: *throttle_time }
+  - { power_id:  cir9, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 36 Daily Energy", filters: *throttle_time }
+  - { power_id: cir10, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 32 Daily Energy", filters: *throttle_time }
+  - { power_id: cir11, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 28 Daily Energy", filters: *throttle_time }
+  - { power_id: cir12, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 2426 Daily Energy", filters: *throttle_time }
+  - { power_id: cir13, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 2022 Daily Energy", filters: *throttle_time }
+  - { power_id: cir14, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 1214 Daily Energy", filters: *throttle_time }
+  - { power_id: cir15, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 108 Daily Energy", filters: *throttle_time }
+  - { power_id: cir16, platform: total_daily_energy, accuracy_decimals: 0, restore: false, name: "Circuit 46 Daily Energy", filters: *throttle_time }

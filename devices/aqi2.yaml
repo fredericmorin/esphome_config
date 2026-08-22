@@ -1,0 +1,108 @@
+esphome:
+  name: aqi2
+  friendly_name: aqi2
+esp8266:
+  #pinout https://hobbycomponents.com/development-boards/864-wemos-d1-mini-pro-esp8266-development-board
+  board: esp01_1m
+api:
+  encryption:
+    key: !secret aqi2__encryption_key
+ota:
+  platform: esphome
+  password: !secret aqi2__ota_password
+wifi:
+  ssid: !secret niot_ssid
+  password: !secret niot_password
+  use_address: 10.32.5.84
+logger:
+web_server:
+mdns:
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+uart:
+  - id: uart_1  # soft
+    rx_pin: GPIO2  # D4
+    baud_rate: 9600
+  - id: uart_2  # soft
+    rx_pin: GPIO13  # D7
+    tx_pin: GPIO15  # D8
+    baud_rate: 9600
+
+i2c:
+  - id: i2c_1
+    scl: GPIO5  # D1
+    sda: GPIO4  # D2
+    scan: false
+    frequency: 100kHz
+
+spi:
+  - id: spi_1  # soft
+    clk_pin: GPIO14  # D5
+    mosi_pin: GPIO12  # D6
+
+font:
+  - file: "fonts/OpenSans-Regular.ttf"
+    id: opensans10
+    size: 10
+  - file: "fonts/OpenSans-Regular.ttf"
+    id: opensanslarge
+    size: 32
+  - file: "fonts/OpenSans-Regular.ttf"
+    id: opensansverylarge
+    size: 48
+
+display:
+  - platform: ssd1306_spi
+    id: oled
+    spi_id: spi_1
+    cs_pin: GPIO0  # D3
+    dc_pin: GPIO16  # D0
+    model: "SSD1306 128x64"
+    brightness: 100%
+    rotation: 0
+    pages:
+      - id: page1
+        lambda: |-
+          it.printf(-3, 0-18, id(opensansverylarge), "%.0f", id(co2).state);
+          it.print(it.get_width(), -2+8, id(opensans10), TextAlign::TOP_RIGHT, "CO2");
+          it.print(it.get_width(), -2+8+10, id(opensans10), TextAlign::TOP_RIGHT, "ppm");
+
+          it.printf(-1,30-2, id(opensanslarge), "%.0f", id(pm25).state);
+          it.print(it.get_width(), 30+8, id(opensans10), TextAlign::TOP_RIGHT, "PM 2.5um");
+          it.print(it.get_width(), 30+8+10, id(opensans10), TextAlign::TOP_RIGHT, "ug/m3");
+
+interval:
+  - interval: 1s
+    then:
+      - component.update: oled
+
+sensor:
+  - platform: pmsx003
+    type: PMSX003
+    uart_id: uart_1
+    pm_1_0:
+      name: "Particulate Matter <1.0µm Concentration"
+    pm_2_5:
+      id: pm25
+      name: "Particulate Matter <2.5µm Concentration"
+    pm_10_0:
+      name: "Particulate Matter <10.0µm Concentration"
+  - platform: senseair
+    uart_id: uart_2
+    co2:
+      id: co2
+      name: "SenseAir CO2 Value"
+    update_interval: 60s
+  - platform: sht4x
+    # calibrate: https://www.reddit.com/r/Esphome/comments/1horuxt/comment/m4f34q7/
+    id: sht4x_sensor
+    # update_interval: 5s  # default to 60s
+    humidity:
+      name: "Relative Humidity"
+      accuracy_decimals: 1
+    temperature:
+      name: "Temperature"
+      accuracy_decimals: 1
