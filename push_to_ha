@@ -6,4 +6,4 @@ SCRIPT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd -P 
 mkdir -p "$SCRIPT_ROOT/devices"
 cd "$SCRIPT_ROOT/devices"
 set -x
-tar -zc *.yaml | ssh "$HA_HOST" 'tar -zvx -C /homeassistant/esphome/'
+COPYFILE_DISABLE=1 tar -zc *.yaml | ssh "$HA_HOST" 'tar -zvx -C /homeassistant/esphome/'
