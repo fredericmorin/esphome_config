@@ -18,8 +18,8 @@ captive_portal:
 logger:
 
 substitutions:
-  on_humidity_threshold: "85"
-  off_humidity_threshold: "75"
+  # How long the fan runs after someone presses the physical button.
+  manual_run_time: "30min"
 
 i2c:
   sda: GPIO13
@@ -38,48 +38,26 @@ sensor:
     temperature:
       name: "Temperature"
       accuracy_decimals: 1
-      on_value:
-        then:
-          - lambda: |-
-              if (x >= id(on_humidity_threshold_ui).state) {
-                id(relay).turn_on();
-              } else if (x >= id(off_humidity_threshold_ui).state) {
-                id(relay).turn_off();
-              }
 
-number:
+# Fired just before the manual timeout switches the fan off, so Home Assistant can tell a
+# timeout apart from someone turning the fan off by hand.
+event:
   - platform: template
-    name: "On Humidity Threshold"
-    id: on_humidity_threshold_ui
-    unit_of_measurement: "%"
-    min_value: 0
-    max_value: 100
-    step: 5
-    mode: box
-    update_interval: never
-    optimistic: true
-    restore_value: true
-    initial_value: ${on_humidity_threshold}
-    icon: "mdi:water-percent"
-    entity_category: config
-    on_value:
-      - lambda: 'id(humi_sensor).update();'
-  - platform: template
-    name: "Off Humidity Threshold"
-    id: off_humidity_threshold_ui
-    unit_of_measurement: "%"
-    min_value: 0
-    max_value: 100
-    step: 5
-    mode: box
-    update_interval: never
-    optimistic: true
-    restore_value: true
-    initial_value: ${off_humidity_threshold}
-    icon: "mdi:water-percent"
-    entity_category: config
-    on_value:
-      - lambda: 'id(humi_sensor).update();'
+    id: fan_timeout_event
+    name: "Fan Timeout"
+    event_types:
+      - expired
+    entity_category: diagnostic
+
+script:
+  - id: manual_fan_timeout
+    mode: restart
+    then:
+      - delay: ${manual_run_time}
+      - event.trigger:
+          id: fan_timeout_event
+          event_type: expired
+      - switch.turn_off: relay
 
 switch:
   - platform: gpio
@@ -92,6 +70,7 @@ switch:
       # - switch.turn_off: red_led
     on_turn_off:
       - switch.turn_off: blue_led
+      - script.stop: manual_fan_timeout
       # - switch.turn_on: red_led
   - platform: gpio
     pin: GPIO12
@@ -113,7 +92,14 @@ binary_sensor:
     id: main_button
     internal: true
     on_press:
-      - switch.toggle: relay
+      - if:
+          condition:
+            switch.is_on: relay
+          then:
+            - switch.turn_off: relay
+          else:
+            - switch.turn_on: relay
+            - script.execute: manual_fan_timeout
 
 button:
   - platform: restart
