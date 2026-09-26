@@ -17,6 +17,9 @@ logger:
 web_server:
 mdns:
 
+switch:
+  - platform: restart
+    name: "Restart"
 remote_receiver:
   id: rcvr
   pin:
